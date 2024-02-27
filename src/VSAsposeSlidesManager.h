@@ -6,8 +6,8 @@
 #include <Drawing/imaging/image_format.h>
 
 class VSAsposeSlidesManager :
-	public VSAbstractInterruptibleFileAsImagesExporter,
-	public VSAbstractInterruptibleFileThumbnailGenerator
+	public tc::file_as_img::AbstractInterruptible<tc::file_as_img::fs::IExporter>,
+	public tc::file_as_img::AbstractInterruptible<tc::file_as_img::fs::IThumbnailGenerator>
 {
 public:
 	using ASIFmt = Aspose::Slides::LoadFormat;
@@ -46,8 +46,12 @@ public:
 	}
 
 	VSAsposeSlidesManager() :
-		VSAbstractInterruptibleFileAsImagesExporter(std::make_unique<VSStdAtomicBoolInterruptor>()),
-		VSAbstractInterruptibleFileThumbnailGenerator(std::make_unique<VSStdAtomicBoolInterruptor>())
+		tc::file_as_img::AbstractInterruptible<tc::file_as_img::fs::IExporter>(
+			std::make_unique<VSStdAtomicBoolInterruptor>()
+		),
+		tc::file_as_img::AbstractInterruptible<tc::file_as_img::fs::IThumbnailGenerator>(
+			std::make_unique<VSStdAtomicBoolInterruptor>()
+		)
 	{}
 
 	void exportAsImages(

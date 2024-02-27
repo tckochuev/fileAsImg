@@ -1,6 +1,7 @@
 #pragma once
 
 #include <any>
+#include <memory>
 
 #include <boost/lexical_cast.hpp>
 
@@ -8,48 +9,53 @@
 #include "VSUtils.h"
 #include "VSIInterruptible.h"
 
-class VSIFileAsImagesExporterTypesHolder
+namespace tc::file_as_img
 {
-	INTERFACE(VSIFileAsImagesExporterTypesHolder)
-public:
-	using Path = tc::stdfs::path;
+
+struct TypesHolder
+{
+	using Any = std::any;
 	using String = std::string;
+	using Path = tc::stdfs::path;
 	using FileFormat = String;
 	using ImageFormat = String;
-	using AnyImageNameGenerator = std::function<String()>;
-	using Any = std::any;
-
-	class FileFormatNotSupported : public tc::err::exc::InvalidArgument
-	{
-	public:
-		FileFormatNotSupported(const FileFormat& fmt) :
-			tc::err::exc::InvalidArgument(fmt + " files are not supported")
-		{}
-		using tc::err::exc::InvalidArgument::InvalidArgument;
-	};
-
-	class ImageFormatNotSupported : public tc::err::exc::InvalidArgument
-	{
-	public:
-		ImageFormatNotSupported(const ImageFormat& fmt) :
-			tc::err::exc::InvalidArgument(fmt + " images are not supported")
-		{}
-		using tc::err::exc::InvalidArgument::InvalidArgument;
-	};
 };
 
-class VSIFileThumbnailGenerator : public VSIFileAsImagesExporterTypesHolder
+class InvalidFileFormat : public tc::err::exc::InvalidArgument
 {
-	INTERFACE(VSIFileThumbnailGenerator)
 public:
-	class NotEnoughtDataAvailable : std::runtime_error {
-	public:
-		NotEnoughtDataAvailable() :
-			std::runtime_error("Not enought data available in file for thumbnail generation")
-		{}
-		using std::runtime_error::runtime_error;
-	};
-	///@throw NotEnoughtDataAvailable if @p inputFile is valid file of @p inputFormat but has not enought information
+	InvalidFileFormat() : tc::err::exc::InvalidArgument("Invalid format of file") {}
+	using tc::err::exc::InvalidArgument::InvalidArgument;
+};
+
+class InvalidImageFormat : public tc::err::exc::InvalidArgument
+{
+public:
+	InvalidImageFormat() : tc::err::exc::InvalidArgument("Invalid format of image") {}
+	using tc::err::exc::InvalidArgument::InvalidArgument;
+};
+
+class NoDataAvailableForThumbnail : std::runtime_error {
+public:
+	NoDataAvailableForThumbnail() :
+		std::runtime_error("No data available in file for thumbnail generation")
+	{}
+	using std::runtime_error::runtime_error;
+};
+
+namespace fs
+{
+
+struct TypesHolder : public tc::file_as_img::TypesHolder
+{
+	using AnyImageNameGenerator = std::function<String()>;
+};
+
+class IThumbnailGenerator : public TypesHolder
+{
+	INTERFACE(IThumbnailGenerator)
+public:
+	///@throw NoDataAvailableForThumbnail if @p inputFile is valid file of @p inputFormat but has not enought information
 	/// for thumbnail generation.
 	///@throw FileFormatNotSupported.
 	///@throw ImageFormatNotSupported.
@@ -62,29 +68,15 @@ public:
 	) = 0;
 };
 
-class VSIInterruptibleFileThumbnailGenerator : public VSIFileThumbnailGenerator, public VSIInterruptible
+class IExporter : public TypesHolder
 {
-	INTERFACE(VSIInterruptibleFileThumbnailGenerator)
-public:
-	virtual bool isPreviewGenerationInterruptSet() const = 0;
-	virtual void setPreviewGenerationInterrupt(bool interrupt) = 0;
-	bool isInterruptSet() const override {
-		return isPreviewGenerationInterruptSet();
-	}
-	void setInterrupt(bool interrupt) override {
-		return setPreviewGenerationInterrupt(interrupt);
-	}
-};
-
-class VSIFileAsImagesExporter : public VSIFileAsImagesExporterTypesHolder
-{
-	INTERFACE(VSIFileAsImagesExporter)
+	INTERFACE(IExporter)
 public:
 	using AnyImageNameConsumer = std::function<void(const String&)>;
 	///@brief Exports @p inputFile of @p inputFormat as images with @p outputFormat to @p outputDir,
 	/// invokes @p forEachImage on all paths to produced images.
-	///@throw FileFormatNotSupported.
-	///@throw ImageFormatNotSupported.
+	///@throw InvalidFileFormat.
+	///@throw InvalidImageFormat.
 	///@throw implementation defined type exception.
 	virtual void exportAsImages(
 		const Path& inputFile, const FileFormat& inputFormat,
@@ -95,79 +87,13 @@ public:
 	) = 0;
 };
 
-class VSIInterruptibleFileAsImagesExporter : public VSIFileAsImagesExporter, public VSIInterruptible
-{
-	INTERFACE(VSIInterruptibleFileAsImagesExporter)
-public:
-	virtual bool isExportAsImagesInterruptSet() const = 0;
-	bool isInterruptSet() const override {
-		return isExportAsImagesInterruptSet();
-	}
-	virtual void setExportAsImagesInterrupt(bool interrupt) = 0;
-	void setInterrupt(bool interrupt) override {
-		setExportAsImagesInterrupt(interrupt);
-	}
-};
-
-class VSAbstractInterruptibleHolder
-{
-public:
-	virtual ~VSAbstractInterruptibleHolder() = default;
-protected:
-	using Ptr = std::unique_ptr<VSIInterruptible>;
-
-	VSAbstractInterruptibleHolder(Ptr interruptible) : m_interruptible(std::move(interruptible)) {}
-	DECL_DEF_CP_MV_CTORS_ASSIGN_BY_DEF(VSAbstractInterruptibleHolder)
-
-	Ptr m_interruptible;
-};
-
-class VSAbstractInterruptibleFileThumbnailGenerator :
-	public VSIInterruptibleFileThumbnailGenerator,
-	protected VSAbstractInterruptibleHolder
-{
-public:
-	bool isPreviewGenerationInterruptSet() const override {
-		assert(m_interruptible);
-		return m_interruptible->isInterruptSet();
-	}
-	void setPreviewGenerationInterrupt(bool interrupt) override {
-		assert(m_interruptible);
-		m_interruptible->setInterrupt(interrupt);
-	}
-
-protected:
-	using VSAbstractInterruptibleHolder::VSAbstractInterruptibleHolder;
-	DECL_DEF_CP_MV_CTORS_ASSIGN_BY_DEF(VSAbstractInterruptibleFileThumbnailGenerator)
-};
-
-
-class VSAbstractInterruptibleFileAsImagesExporter :
-	public VSIInterruptibleFileAsImagesExporter,
-	protected VSAbstractInterruptibleHolder
-{
-public:
-	bool isExportAsImagesInterruptSet() const override {
-		assert(m_interruptible);
-		return m_interruptible->isInterruptSet();
-	}
-	void setExportAsImagesInterrupt(bool interrupt) override {
-		assert(m_interruptible);
-		m_interruptible->setInterrupt(interrupt);
-	}
-
-protected:
-	using VSAbstractInterruptibleHolder::VSAbstractInterruptibleHolder;
-	DECL_DEF_CP_MV_CTORS_ASSIGN_BY_DEF(VSAbstractInterruptibleFileAsImagesExporter)
-};
-
 template<typename Value = int>
-struct VSIncrementNameGenerator
+struct IncrementNameGenerator
 {
-	using String = VSIFileAsImagesExporterTypesHolder::String;
+	using String = TypesHolder::String;
 
-	VSIncrementNameGenerator() = default;
-	VSIncrementNameGenerator(Value value, String postfix)
+	IncrementNameGenerator() = default;
+	IncrementNameGenerator(Value value, String postfix)
 		: value(std::move(value)), postfix(std::move(postfix))
 	{}
 
@@ -178,3 +104,102 @@ struct VSIncrementNameGenerator
 	Value value{};
 	String postfix{};
 };
+
+} //namespace fs
+
+namespace mem
+{
+
+class IImage
+{
+	INTERFACE(IImage)
+public:
+	using Size = size_t;
+	using Byte = std::byte;
+
+	virtual Size width() const = 0;
+	virtual Size height() const = 0;
+	virtual const Byte* raw() const = 0;
+};
+
+class IThumbnailGenerator : public TypesHolder
+{
+	INTERFACE(IThumbnailGenerator)
+public:
+	///@throw NoDataAvailableForThumbnail if @p inputFile is valid file of @p inputFormat but has not enought information
+	/// for thumbnail generation.
+	///@throw FileFormatNotSupported.
+	///@throw ImageFormatNotSupported.
+	///@throw implementation defined exceptions.
+	virtual std::unique_ptr<IImage> generateThumbnail(
+		const Path& inputFile, const FileFormat& inputFormat,
+		const ImageFormat& outputFormat, const Any& options
+	) = 0;
+};
+
+class IExporter : public TypesHolder
+{
+	INTERFACE(IExporter)
+public:
+	using AnyImageConsumer = std::function<void(std::unique_ptr<IImage>)>;
+	///@brief Exports @p inputFile of @p inputFormat as images with @p outputFormat to @p outputDir,
+	/// invokes @p forEachImage on all paths to produced images.
+	///@throw FileFormatNotSupported.
+	///@throw ImageFormatNotSupported.
+	///@throw implementation defined type exception.
+	virtual void exportAsImages(
+		const Path& inputFile, const FileFormat& inputFormat,
+		const ImageFormat& imageFormat, const Any& options,
+		const AnyImageConsumer& forEachImage
+	) = 0;
+};
+
+} //namespace mem
+
+template<typename Interface>
+struct TaskOf
+{};
+
+template<typename Interface>
+inline constexpr TaskOf<Interface> taskOf{};
+
+template<typename Interface>
+class IInterruptible : public VSIInterruptible, public Interface
+{
+	INTERFACE(IInterruptible)
+public:
+	virtual bool isInterruptSetFor(TaskOf<Interface>) const = 0;
+	virtual void setInterruptFor(TaskOf<Interface>, bool interrupt) = 0;
+	bool isInterruptSet() const override {
+		return isInterruptSetFor(taskOf<Interface>);
+	}
+	void setInterrupt(bool interrupt) override {
+		return setInterruptFor(taskOf<Interface>, interrupt);
+	}
+};
+
+template<typename Interface>
+class AbstractInterruptible : public IInterruptible<Interface>
+{
+public:
+	virtual ~AbstractInterruptible() = default;
+
+	bool isInterruptSetFor(TaskOf<Interface>) const override {
+		assert(m_interruptible);
+		return m_interruptible->isInterruptSet();
+	}
+	void setInterruptFor(TaskOf<Interface>, bool interrupt) override {
+		assert(m_interruptible);
+		m_interruptible->setInterrupt(interrupt);
+	}
+
+protected:
+	using Ptr = std::unique_ptr<VSIInterruptible>;
+
+	AbstractInterruptible(Ptr interruptible) : m_interruptible(std::move(interruptible)) {}
+	DECL_DEF_CP_MV_CTORS_ASSIGN_BY_DEF(AbstractInterruptible)
+
+	Ptr m_interruptible;
+};
+
+}

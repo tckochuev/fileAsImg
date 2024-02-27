@@ -33,12 +33,17 @@ int main(int argc, char** argv)
 			vars["input-format"].as<std::string>(),
 			vars["output-dir"].as<std::string>(),
 			vars["output-format"].as<std::string>(),
-			VSIncrementNameGenerator(0, ".png"),
+			tc::file_as_img::fs::IncrementNameGenerator(0, ".png"),
 			{},
-			[](const VSIFileAsImagesExporterTypesHolder::String& name) {
+			[](const tc::file_as_img::fs::TypesHolder::String& name) {
 				std::cout << name << std::endl;
 			}
 		);
+	}
+	catch(std::out_of_range& e)
+	{
+		std::cerr << "Format is not supported" << std::endl;
+		return 1;
 	}
 	catch(std::exception& e)
 	{

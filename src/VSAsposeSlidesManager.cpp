@@ -13,7 +13,6 @@
 #include <DOM/ISlide.h>
 #include <DOM/ISlideCollection.h>
 #include <Drawing/bitmap.h>
-#include <Drawing/size_f.h>
 #include <DOM/ISlideSize.h>
 
 void VSAsposeSlidesManager::exportAsImages(
@@ -24,7 +23,7 @@ void VSAsposeSlidesManager::exportAsImages(
 	const AnyImageNameConsumer& forEachImageName
 )
 {
-	doExportAsImagesFor<VSIInterruptibleFileAsImagesExporter>(
+	doExportAsImagesFor<tc::file_as_img::IInterruptible<tc::file_as_img::fs::IExporter>>(
 		inputFile, inputFormat, outputDir, outputFormat,
 		imageNameGenerator, options, forEachImageName
 	);
@@ -38,7 +37,7 @@ auto VSAsposeSlidesManager::generateThumbnail(
 ) -> String
 {
 	String imageName;
-	doExportAsImagesFor<VSIInterruptibleFileThumbnailGenerator>(
+	doExportAsImagesFor<tc::file_as_img::IInterruptible<tc::file_as_img::fs::IThumbnailGenerator>>(
 		inputFile, inputFormat, outputDir, outputFormat,
 		imageNameGenerator, options, [&](const String& name) {imageName = name;}
 	);
@@ -57,18 +56,14 @@ void VSAsposeSlidesManager::doExportAsImagesFor(
 	namespace as = Aspose::Slides;
 	namespace assys = System;
 
-	static_assert(
-		std::is_base_of_v<VSIInterruptibleFileAsImagesExporter, Interface> ||
-		std::is_base_of_v<VSIInterruptibleFileThumbnailGenerator, Interface>
-	);
-	if(!supportedFileFormats.count(inputFormat))
-	{
-		throw FileFormatNotSupported(inputFormat);
+	if(!supportedFileFormats.count(inputFormat)) {
+		throw tc::file_as_img::InvalidFileFormat();
 	}
 	if(!supportedImageFormats.count(outputFormat))
 	{
-		throw ImageFormatNotSupported(outputFormat);
+		throw tc::file_as_img::InvalidImageFormat();
 	}
+	float dpi = options.has_value() ? std::any_cast<float>(options) : 96.0f;
 
 	auto checkInterrupt = [this] {
 		return Interface::checkInterrupt();
@@ -86,25 +81,32 @@ void VSAsposeSlidesManager::doExportAsImagesFor(
 		checkInterrupt();
 		auto slideCount = slides->get_Count();
 		checkInterrupt();
-		constexpr bool thumbnail = std::is_base_of_v<VSIInterruptibleFileThumbnailGenerator, Interface>;
+		constexpr bool thumbnail = std::is_base_of_v<
+			tc::file_as_img::IInterruptible<tc::file_as_img::fs::IThumbnailGenerator>,
+			Interface
+		>;
 		if(thumbnail && slideCount < 1) {
-			throw VSIFileThumbnailGenerator::NotEnoughtDataAvailable();
+			throw tc::file_as_img::NoDataAvailableForThumbnail();
 		}
-		auto slideSize = pres->get_SlideSize()->get_Size();
-		float dpi = std::any_cast<float>(options);
-		assys::Drawing::Size bitmapSize(
-			pointsToPixels(slideSize.get_Width(), dpi),
-			pointsToPixels(slideSize.get_Height(), dpi)
-		);
+		std::optional<System::Drawing::Size> imgPixelSize;
+		if constexpr (!thumbnail)
+		{
+			auto slidePointSize = pres->get_SlideSize()->get_Size();
+			imgPixelSize = System::Drawing::Size(
+				pointsToPixels(slidePointSize.get_Width(), dpi),
+				pointsToPixels(slidePointSize.get_Height(), dpi)
+			);
+		}
 		for(decltype(slideCount) i = 0; i < (thumbnail ? 1 : slideCount); ++i)
 		{
 			auto slide = slides->idx_get(i);
 			checkInterrupt();
-			auto slideImage = slide->GetThumbnail(System::Drawing::Size(1920, 1080));
+			assert(!thumbnail == imgPixelSize.has_value());
+			auto slideBitmap = thumbnail ? slide->GetThumbnail() : slide->GetThumbnail(*imgPixelSize);
 			checkInterrupt();
 			String imageName = imageNameGenerator();
 			checkInterrupt();
-			slideImage->Save(
+			slideBitmap->Save(
 				assys::String::FromUtf8((outputDir / imageName).string()),
 				std::invoke(supportedImageFormats.at(outputFormat))
 			);
