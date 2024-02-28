@@ -2,6 +2,7 @@
 
 #include <any>
 #include <memory>
+#include <type_traits>
 
 #include <boost/lexical_cast.hpp>
 
@@ -15,10 +16,8 @@ namespace tc::file_as_img
 struct TypesHolder
 {
 	using Any = std::any;
-	using String = std::string;
 	using Path = tc::stdfs::path;
-	using FileFormat = String;
-	using ImageFormat = String;
+	using FileFormat = std::string;
 };
 
 class InvalidFileFormat : public tc::err::exc::InvalidArgument
@@ -46,8 +45,10 @@ public:
 namespace fs
 {
 
-struct TypesHolder : public tc::file_as_img::TypesHolder
+struct TypesHolder : tc::file_as_img::TypesHolder
 {
+	using ImageFormat = std::string;
+	using String = std::string;
 	using AnyImageNameGenerator = std::function<String()>;
 };
 
@@ -61,8 +62,8 @@ public:
 	///@throw ImageFormatNotSupported.
 	///@throw implementation defined exceptions.
 	virtual String generateThumbnail(
-		const Path& inputFile, const FileFormat& inputFormat,
-		const Path& outputDir, const ImageFormat& outputFormat,
+		const Path& file, const FileFormat& fileFormat,
+		const Path& outputDir, const ImageFormat& imageFormat,
 		const AnyImageNameGenerator& imageNameGenerator,
 		const Any& options
 	) = 0;
@@ -79,8 +80,8 @@ public:
 	///@throw InvalidImageFormat.
 	///@throw implementation defined type exception.
 	virtual void exportAsImages(
-		const Path& inputFile, const FileFormat& inputFormat,
-		const Path& outputDir, const ImageFormat& outputFormat,
+		const Path& file, const FileFormat& fileFormat,
+		const Path& outputDir, const ImageFormat& imageFormat,
 		const AnyImageNameGenerator& imageNameGenerator,
 		const Any& options,
 		const AnyImageNameConsumer& forEachImageName
@@ -110,16 +111,58 @@ struct IncrementNameGenerator
 namespace mem
 {
 
+class IImage;
+
+struct TypesHolder : tc::file_as_img::TypesHolder
+{
+	using PixelFormat = std::string;
+	using IImage = IImage;
+};
+
 class IImage
 {
 	INTERFACE(IImage)
 public:
 	using Size = size_t;
 	using Byte = std::byte;
+	using PixelFormat = TypesHolder::PixelFormat;
 
 	virtual Size width() const = 0;
 	virtual Size height() const = 0;
-	virtual const Byte* raw() const = 0;
+	virtual PixelFormat format() const = 0;
+	virtual const Byte* data() const = 0;
+};
+
+class Image : public IImage
+{
+public:
+	Image(std::unique_ptr<const Byte> data, Size width, Size height, PixelFormat format)
+		: m_data(std::move(data)), m_width(width), m_height(height), m_format(std::move(format))
+	{
+		assert(m_data);
+		assert(width > 0);
+		assert(height > 0);
+	}
+	Image(Image&&) noexcept = delete;
+
+	Size width() const override {
+		return m_width;
+	}
+	Size height() const override {
+		return m_height;
+	}
+	PixelFormat format() const override {
+		return m_format;
+	}
+	const Byte* data() const override {
+		return m_data.get();
+	}
+
+private:
+	PixelFormat m_format;
+	std::unique_ptr<const Byte> m_data;
+	Size m_width;
+	Size m_height;
 };
 
 class IThumbnailGenerator : public TypesHolder
@@ -132,8 +175,7 @@ public:
 	///@throw ImageFormatNotSupported.
 	///@throw implementation defined exceptions.
 	virtual std::unique_ptr<IImage> generateThumbnail(
-		const Path& inputFile, const FileFormat& inputFormat,
-		const ImageFormat& outputFormat, const Any& options
+		const Path& file, const FileFormat& fileFormat, const PixelFormat& pixelFormat, const Any& options
 	) = 0;
 };
 
@@ -148,8 +190,8 @@ public:
 	///@throw ImageFormatNotSupported.
 	///@throw implementation defined type exception.
 	virtual void exportAsImages(
-		const Path& inputFile, const FileFormat& inputFormat,
-		const ImageFormat& imageFormat, const Any& options,
+		const Path& file, const FileFormat& fileFormat,
+		const PixelFormat& pixelFormat, const Any& options,
 		const AnyImageConsumer& forEachImage
 	) = 0;
 };
@@ -202,4 +244,26 @@ protected:
 	Ptr m_interruptible;
 };
 
-}
+template<typename Class>
+inline constexpr bool isThumbnailGenerator =
+	std::is_base_of_v<
+		tc::file_as_img::fs::IThumbnailGenerator,
+		Class
+	> ||
+	std::is_base_of_v<
+		tc::file_as_img::mem::IThumbnailGenerator,
+		Class
+	>;
+
+template<typename Class>
+inline constexpr bool isExporter =
+	std::is_base_of_v<
+		tc::file_as_img::fs::IExporter,
+		Class
+	> ||
+	std::is_base_of_v<
+		tc::file_as_img::mem::IExporter,
+		Class
+	>;
+
+} //namespace tc::file_as_img

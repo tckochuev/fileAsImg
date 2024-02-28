@@ -40,11 +40,6 @@ int main(int argc, char** argv)
 			}
 		);
 	}
-	catch(std::out_of_range& e)
-	{
-		std::cerr << "Format is not supported" << std::endl;
-		return 1;
-	}
 	catch(std::exception& e)
 	{
 		std::cerr << e.what() << std::endl;
