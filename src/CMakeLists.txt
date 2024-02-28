@@ -12,6 +12,8 @@ add_executable(
 	VSIInterruptible.cpp
 	VSAsposeSlidesManager.h
 	VSAsposeSlidesManager.cpp
+	VSQtPdfManager.h
+	VSQtPdfManager.cpp
 )
 
 #Boost
@@ -21,16 +23,16 @@ if(Boost_VERSION VERSION_LESS_EQUAL "1.62")
 endif()
 
 #Aspose
-set(ASPOSE_ROOT "${PROJECT_SOURCE_DIR}/lib/aspose-slides-cpp-windows-23.9")
+#set(ASPOSE_ROOT "${PROJECT_SOURCE_DIR}/lib/aspose-slides-cpp-windows-23.9")
 set(ASPOSE_CORE CodePorting.Translator.Cs2Cpp.Framework)
 set(ASPOSE_SLIDES Aspose.Slides.Cpp)
-find_package(${ASPOSE_CORE} REQUIRED CONFIG PATHS ${ASPOSE_ROOT} NO_DEFAULT_PATH)
-find_package(${ASPOSE_SLIDES} REQUIRED CONFIG PATHS ${ASPOSE_ROOT} NO_DEFAULT_PATH)
+find_package(${ASPOSE_CORE} REQUIRED CONFIG #[[PATHS ${ASPOSE_ROOT} NO_DEFAULT_PATH]])
+find_package(${ASPOSE_SLIDES} REQUIRED CONFIG #[[PATHS ${ASPOSE_ROOT} NO_DEFAULT_PATH]])
 file(TO_NATIVE_PATH "${ASPOSE_CORE}/lib" ${ASPOSE_CORE}_DLL_PATH)
 file(TO_NATIVE_PATH "${Aspose.Slides.Cpp_DIR}/lib" ${ASPOSE_CORE}_DLL_PATH)
 
 #Qt
-find_package(Qt5 REQUIRED COMPONENTS Core Gui)
+find_package(Qt5 5.15.12 EXACT REQUIRED COMPONENTS Core Gui Pdf)
 if(CMAKE_VERSION VERSION_LESS "3.7.0")
     set(CMAKE_INCLUDE_CURRENT_DIR ON)
 endif()
@@ -48,4 +50,5 @@ target_link_libraries(${TARGET_NAME}
 	PRIVATE ${ASPOSE_SLIDES}
 	PRIVATE Qt5::Core
 	PRIVATE Qt5::Gui
+	PRIVATE Qt5::Pdf
 )

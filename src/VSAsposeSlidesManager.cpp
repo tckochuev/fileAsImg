@@ -16,10 +16,25 @@
 #include <Drawing/bitmap.h>
 #include <DOM/ISlideSize.h>
 
-#include <QImage>
+#include "VSUtils.h"
 
 namespace as = Aspose::Slides;
 namespace assys = System;
+
+VSAsposeSlidesManager::VSAsposeSlidesManager() :
+	tc::file_as_img::AbstractInterruptible<tc::file_as_img::fs::IExporter>(
+		std::make_unique<VSStdAtomicBoolInterruptor>()
+	),
+	tc::file_as_img::AbstractInterruptible<tc::file_as_img::mem::IExporter>(
+		std::make_unique<VSStdAtomicBoolInterruptor>()
+	),
+	tc::file_as_img::AbstractInterruptible<tc::file_as_img::fs::IThumbnailGenerator>(
+		std::make_unique<VSStdAtomicBoolInterruptor>()
+	),
+	tc::file_as_img::AbstractInterruptible<tc::file_as_img::mem::IThumbnailGenerator>(
+		std::make_unique<VSStdAtomicBoolInterruptor>()
+	)
+{}
 
 void VSAsposeSlidesManager::exportAsImages(
 	const Path& file, const FileFormat& fileFormat,
@@ -99,7 +114,7 @@ bool VSAsposeSlidesManager::areOptionsValid(const Any& options)
 {
 	static_assert(tc::file_as_img::isThumbnailGenerator<Interface> || tc::file_as_img::isExporter<Interface>);
 	if constexpr (tc::file_as_img::isThumbnailGenerator<Interface>) {
-		return !options.has_value() || static_cast<bool>(std::any_cast<float>(&options));
+		return !options.has_value() || static_cast<bool>(std::any_cast<DPI>(&options));
 	}
 	else {
 		return !options.has_value();
@@ -178,10 +193,10 @@ void VSAsposeSlidesManager::exportAsBitmaps(
 	if constexpr (!thumbnail)
 	{
 		auto slidePointSize = pres->get_SlideSize()->get_Size();
-		float dpi = options.has_value() ? std::any_cast<float>(options) : 96.0f;
+		DPI dpi = options.has_value() ? std::any_cast<DPI>(options) : 96.0;
 		imgPixelSize = System::Drawing::Size(
-			pointsToPixels(slidePointSize.get_Width(), dpi),
-			pointsToPixels(slidePointSize.get_Height(), dpi)
+			tc::pointsToPixels(slidePointSize.get_Width(), dpi),
+			tc::pointsToPixels(slidePointSize.get_Height(), dpi)
 		);
 	}
 	checkInterrupt();

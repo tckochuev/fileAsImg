@@ -51,24 +51,9 @@ public:
 		{"argb32", ASPixelFormat::Format32bppArgb}
 	};
 
-	static float pointsToPixels(float points, float dpi) {
-		return (points / 72.0) * dpi;
-	}
+	using DPI = double;
 
-	VSAsposeSlidesManager() :
-		tc::file_as_img::AbstractInterruptible<tc::file_as_img::fs::IExporter>(
-			std::make_unique<VSStdAtomicBoolInterruptor>()
-		),
-		tc::file_as_img::AbstractInterruptible<tc::file_as_img::mem::IExporter>(
-			std::make_unique<VSStdAtomicBoolInterruptor>()
-		),
-		tc::file_as_img::AbstractInterruptible<tc::file_as_img::fs::IThumbnailGenerator>(
-			std::make_unique<VSStdAtomicBoolInterruptor>()
-		),
-		tc::file_as_img::AbstractInterruptible<tc::file_as_img::mem::IThumbnailGenerator>(
-			std::make_unique<VSStdAtomicBoolInterruptor>()
-		)
-	{}
+	VSAsposeSlidesManager();
 
 	void exportAsImages(
 		const Path& file, const FileFormat& fileFormat,
@@ -90,7 +75,7 @@ public:
 
 	String generateThumbnail(
 		const Path& file, const FileFormat& fileFormat,
-		const Path& outputDir, const PixelFormat& pixelFormat,
+		const Path& outputDir, const ImageFormat& imageFormat,
 		const AnyImageNameGenerator& imageNameGenerator,
 		const Any& options
 	) override;

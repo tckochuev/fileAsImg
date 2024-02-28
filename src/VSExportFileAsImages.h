@@ -45,6 +45,8 @@ public:
 namespace fs
 {
 
+//
+
 struct TypesHolder : tc::file_as_img::TypesHolder
 {
 	using ImageFormat = std::string;
@@ -110,6 +112,9 @@ struct IncrementNameGenerator
 
 namespace mem
 {
+
+//Defined pixel formats:
+//argb32
 
 class IImage;
 

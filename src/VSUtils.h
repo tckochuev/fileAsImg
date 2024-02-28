@@ -26,7 +26,14 @@ virtual ~ClassName() = default;\
 protected:\
 DECL_DEF_CP_MV_CTORS_ASSIGN_BY_DEF(ClassName)
 
-namespace tc::err::exc
+namespace tc
+{
+
+inline double pointsToPixels(double points, double dpi) {
+	return (points / 72.0) * dpi;
+}
+
+namespace err::exc
 {
 
 class Interrupted : public std::runtime_error
@@ -42,5 +49,7 @@ public:
 	InvalidArgument() : std::runtime_error("Invalid argument has been passed to function") {}
 	using std::runtime_error::runtime_error;
 };
+
+}
 
 };
