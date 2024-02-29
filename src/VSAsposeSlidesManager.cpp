@@ -13,7 +13,6 @@
 #include <Export/SaveFormat.h>
 #include <DOM/ISlide.h>
 #include <DOM/ISlideCollection.h>
-#include <Drawing/bitmap.h>
 #include <DOM/ISlideSize.h>
 
 #include "VSUtils.h"

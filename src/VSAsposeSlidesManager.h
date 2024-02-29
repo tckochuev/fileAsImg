@@ -7,9 +7,9 @@
 #include <boost/assign.hpp>
 
 #include <LoadFormat.h>
-#include <Drawing/imaging/image_format.h>
-#include <Drawing/imaging/pixel_format.h>
-#include <Drawing/bitmap.h>
+#include <drawing/imaging/image_format.h>
+#include <drawing/imaging/pixel_format.h>
+#include <drawing/bitmap.h>
 
 #include "VSUtils.h"
 

@@ -121,7 +121,7 @@ class IImage;
 struct TypesHolder : tc::file_as_img::TypesHolder
 {
 	using PixelFormat = std::string;
-	using IImage = IImage;
+	using IImage = tc::file_as_img::mem::IImage;
 };
 
 class IImage
