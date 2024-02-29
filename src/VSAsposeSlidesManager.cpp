@@ -3,8 +3,6 @@
 #include <functional>
 #include <optional>
 #include <unordered_map>
-#include <type_traits>
-#include <algorithm>
 
 #include <system/exception.h>
 #include <system/shared_ptr.h>
