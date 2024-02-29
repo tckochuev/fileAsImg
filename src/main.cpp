@@ -3,6 +3,7 @@
 #include <boost/program_options.hpp>
 
 #include "VSAsposeSlidesManager.h"
+#include "VSQtPdfManager.h"
 #include "VSExportFileAsImages.h"
 
 int main(int argc, char** argv)
@@ -25,15 +26,23 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	VSAsposeSlidesManager exporter;
+	std::unique_ptr<tc::file_as_img::fs::IExporter> exporter;
+	std::string fileFormat = vars["input-format"].as<std::string>();
+	if(fileFormat == "pdf") {
+		exporter.reset(new VSQtPdfManager());
+	}
+	else {
+		exporter.reset(new VSAsposeSlidesManager());
+	}
+	std::string imageFormat = vars["output-format"].as<std::string>();
 	try
 	{
-		exporter.exportAsImages(
+		exporter->exportAsImages(
 			vars["input-file"].as<std::string>(),
-			vars["input-format"].as<std::string>(),
+			fileFormat,
 			vars["output-dir"].as<std::string>(),
-			vars["output-format"].as<std::string>(),
-			tc::file_as_img::fs::IncrementNameGenerator(0, ".png"),
+			imageFormat,
+			tc::file_as_img::fs::IncrementNameGenerator(0, "." + imageFormat),
 			{},
 			[](const tc::file_as_img::fs::TypesHolder::String& name) {
 				std::cout << name << std::endl;

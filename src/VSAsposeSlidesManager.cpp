@@ -146,7 +146,7 @@ void VSAsposeSlidesManager::validateArgumentsMem(
 )
 {
 	validateFileFormat(fileFormat);
-	if(!supportedPixelFormats.count(pixelFormat)) {
+	if(!supportedPixelFormats.left.count(pixelFormat)) {
 		throw tc::err::exc::InvalidArgument("Invalid pixel format");
 	}
 	validateOptions<Interface>(options);
@@ -236,34 +236,34 @@ auto VSAsposeSlidesManager::makeImageFromBitmap(
 	System::SharedPtr<System::Drawing::Bitmap> bitmap, const PixelFormat& pixelFormat, const Any& options
 ) -> std::unique_ptr<IImage>
 {
-	assert(supportedPixelFormats.count(pixelFormat));
+	assert(supportedPixelFormats.left.count(pixelFormat));
 	assert(areOptionsValid<Interface>(options));
 
 	auto checkInterrupt = [this] {
 		Interface::checkInterrupt();
 	};
-
-	auto bitmapSize = bitmap->get_Size();
-	checkInterrupt();
-	auto fmt = assys::Drawing::Imaging::PixelFormat::Format32bppArgb;
-	auto bytesPerPixel = bitmap->GetPixelFormatSize(fmt);
-	checkInterrupt();
-	auto bitmapData = bitmap->LockBits(
-		assys::Drawing::Rectangle({0, 0}, bitmapSize),
-		assys::Drawing::Imaging::ImageLockMode::ReadOnly,
-		fmt
-	);
-	checkInterrupt();
-	IImage::Byte* bitmapDataPtr = reinterpret_cast<IImage::Byte*>(bitmapData->get_Scan0());
-	checkInterrupt();
-	size_t size = bitmapSize.get_Width() * bitmapSize.get_Height() * bytesPerPixel;
-	std::unique_ptr<IImage::Byte> data(new IImage::Byte[size]);
-	checkInterrupt();
-	std::copy(bitmapDataPtr, bitmapDataPtr + size, data.get());
-	checkInterrupt();
-	auto img = std::make_unique<tc::file_as_img::mem::Image>(
-		std::move(data), bitmapSize.get_Width(), bitmapSize.get_Height(), pixelFormat
-	);
-	bitmap->UnlockBits(bitmapData);
-	return img;
+	return std::make_unique<Image>(bitmap, supportedPixelFormats.left.at(pixelFormat));
+//	auto bitmapSize = bitmap->get_Size();
+//	checkInterrupt();
+//	auto fmt = assys::Drawing::Imaging::PixelFormat::Format32bppArgb;
+//	auto bytesPerPixel = bitmap->GetPixelFormatSize(fmt);
+//	checkInterrupt();
+//	auto bitmapData = bitmap->LockBits(
+//		assys::Drawing::Rectangle({0, 0}, bitmapSize),
+//		assys::Drawing::Imaging::ImageLockMode::ReadOnly,
+//		fmt
+//	);
+//	checkInterrupt();
+//	IImage::Byte* bitmapDataPtr = reinterpret_cast<IImage::Byte*>(bitmapData->get_Scan0());
+//	checkInterrupt();
+//	size_t size = bitmapSize.get_Width() * bitmapSize.get_Height() * bytesPerPixel;
+//	std::unique_ptr<IImage::Byte> data(new IImage::Byte[size]);
+//	checkInterrupt();
+//	std::copy(bitmapDataPtr, bitmapDataPtr + size, data.get());
+//	checkInterrupt();
+//	auto img = std::make_unique<tc::file_as_img::mem::Image>(
+//		std::move(data), bitmapSize.get_Width(), bitmapSize.get_Height(), pixelFormat
+//	);
+//	bitmap->UnlockBits(bitmapData);
+//	return img;
 }

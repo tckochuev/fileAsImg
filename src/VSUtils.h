@@ -2,6 +2,9 @@
 
 #include <stdexcept>
 
+#include <boost/bimap.hpp>
+#include <boost/bimap/unordered_set_of.hpp>
+
 #define DECL_CP_MV_CTORS_BY_DEF(ClassName)\
 ClassName(const ClassName&) = default;\
 ClassName(ClassName&&) noexcept = default;
@@ -28,6 +31,12 @@ DECL_DEF_CP_MV_CTORS_ASSIGN_BY_DEF(ClassName)
 
 namespace tc
 {
+
+template<typename X, typename Y>
+using UnorderedBimap = boost::bimap<
+	boost::bimaps::unordered_set_of<X>,
+	boost::bimaps::unordered_set_of<Y>
+>;
 
 inline double pointsToPixels(double points, double dpi) {
 	return (points / 72.0) * dpi;

@@ -27,7 +27,9 @@ public:
 	//supported file format - "pdf".
 
 	inline static const std::unordered_set<ImageFormat> supportedImageFormats = {
-		"png"
+		"png",
+		"jpg",
+		"jpeg"
 	};
 
 	inline static const bimap<PixelFormat, QImage::Format> supportedPixelFormats =

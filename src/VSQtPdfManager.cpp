@@ -4,6 +4,7 @@
 #include <algorithm>
 
 #include <QtPdf/QPdfDocument>
+#include <QPainter>
 
 VSQtPdfManager::VSQtPdfManager() :
 	tc::file_as_img::AbstractInterruptible<tc::file_as_img::fs::IExporter>(
@@ -127,7 +128,7 @@ void VSQtPdfManager::exportAsQImages(const Path& file, const Any& options, F for
 	Interface::checkInterrupt();
 	QPdfDocument::DocumentError err = doc.load(QString::fromStdString(file.string()));
 	if(err != decltype(err)::NoError) {
-		throw std::runtime_error("QPdfDocument error=" + std::to_string(err));
+		throw std::runtime_error("QPdfDocument load error " + std::to_string(err));
 	}
 	Interface::checkInterrupt();
 	int pageCount = doc.pageCount();
@@ -142,15 +143,21 @@ void VSQtPdfManager::exportAsQImages(const Path& file, const Any& options, F for
 	{
 		QSizeF pageSize = doc.pageSize(i);
 		Interface::checkInterrupt();
-		QImage qimg = doc.render(
+		QImage rendered = doc.render(
 			i,
 			QSize(tc::pointsToPixels(pageSize.width(), dpi), tc::pointsToPixels(pageSize.height(), dpi))
 		);
-		if(qimg.isNull()) {
+		if(rendered.isNull()) {
 			throw std::runtime_error("Unable to render pdf page");
 		}
+		QImage img(rendered.size(), rendered.format());
+		img.fill(Qt::white);
+		QPainter p(&img);
+		p.setCompositionMode(QPainter::CompositionMode_SourceAtop);
+		p.drawImage(0, 0, rendered);
+		assert(!img.isNull());
 		Interface::checkInterrupt();
-		forEachQImage(qimg);
+		forEachQImage(img);
 		Interface::checkInterrupt();
 	}
 }
@@ -165,6 +172,7 @@ auto VSQtPdfManager::save(
 {
 	assert(supportedImageFormats.count(imageFormat));
 	assert(areOptionsValid<Interface>(options));
+	assert(!image.isNull());
 
 	String imgName = imageNameGenerator();
 	Interface::checkInterrupt();
